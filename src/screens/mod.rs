@@ -2,5 +2,8 @@ pub mod bluetooth;
 pub mod cow;
 pub mod home;
 pub mod network;
+pub mod power;
 pub mod spotify;
+pub mod system_info;
 pub mod terminal;
+pub mod volume;

@@ -38,6 +38,13 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                     big_button(ui, "Cow", size, || {
                         app.screen = Screen::Cow;
                     });
+                    big_button(ui, "Power", size, || {
+                        app.screen = Screen::Power;
+                    });
+                    ui.end_row();
+                    big_button(ui, "Volume", size, || {
+                        app.screen = Screen::Volume;
+                    });
                     ui.end_row();
                 });
         });

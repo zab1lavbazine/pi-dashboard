@@ -7,4 +7,6 @@ pub enum Screen {
     Network,
     Terminal,
     Cow,
+    Power,
+    Volume,
 }

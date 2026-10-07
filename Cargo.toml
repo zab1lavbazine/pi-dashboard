@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 eframe = "0.36.2"
 egui = "0.36.2"
+egui_extras = { version = "0.36.2", features = ["gif"] }
 env_logger = "0.11.11"

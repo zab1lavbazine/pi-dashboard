@@ -1,23 +1,30 @@
 use eframe::egui;
 
 use crate::{
-    screen::Screen,
     app::PiDashboardApp,
-    ui::components::{big_button, heading, label},
     layout::layout::calculate_layout,
+    screen::Screen,
+    ui::components::{big_button, card, heading, label, scrollable_screen_container},
 };
 
-
 pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
-    let layout = calculate_layout(ui);
-    heading(ui, "Network");
+    scrollable_screen_container(ui, |ui| {
+        heading(ui, "Network");
+        ui.add_space(16.0);
 
-    label(ui, "Network status.");
+        card(ui, |ui| {
+            label(ui, "Network status.");
+            ui.add_space(20.0);
 
-    ui.add_space(20.0);
-
-    big_button(ui, "Back", [layout.button_width, layout.button_height], || {
-        app.screen = Screen::Home;
+            let layout = calculate_layout(ui);
+            big_button(
+                ui,
+                "Back",
+                [layout.button_width, layout.button_height],
+                || {
+                    app.screen = Screen::Home;
+                },
+            );
+        });
     });
-
 }

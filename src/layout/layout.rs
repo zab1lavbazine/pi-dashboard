@@ -1,4 +1,3 @@
-
 use eframe::egui;
 
 #[warn(dead_code)]
@@ -15,8 +14,7 @@ pub fn calculate_layout(ui: &egui::Ui) -> LayoutSizes {
     let spacing = 20.0;
     let columns = 3.0;
 
-    let button_width =
-        (width - spacing * (columns - 1.0)) / columns;
+    let button_width = (width - spacing * (columns - 1.0)) / columns;
 
     let button_height = height * 0.18;
 

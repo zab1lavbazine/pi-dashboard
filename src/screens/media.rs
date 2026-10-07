@@ -58,7 +58,7 @@ pub fn show_menu(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                         for (position, (index, name)) in buttons.iter().enumerate() {
                             big_button(ui, name, size, || {
                                 if app.media.select(*index) {
-                                    app.screen = Screen::MediaPlayer;
+                                    app.navigate_to(Screen::MediaPlayer);
                                 }
                             });
                             if (position + 1) % NUMBER_OF_COLUMNS == 0 {
@@ -101,7 +101,7 @@ pub fn show_menu(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                     .add_sized([180.0, 60.0], egui::Button::new("Back"))
                     .clicked()
                 {
-                    app.screen = Screen::Home;
+                    app.go_back();
                 }
             });
         });
@@ -110,12 +110,12 @@ pub fn show_menu(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
 
 pub fn show_player(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
     if ui.input(|input| input.pointer.any_pressed()) {
-        app.screen = Screen::Media;
+        app.go_back();
         return;
     }
 
     let Some(item) = app.media.selected_item() else {
-        app.screen = Screen::Media;
+        app.go_back();
         return;
     };
 

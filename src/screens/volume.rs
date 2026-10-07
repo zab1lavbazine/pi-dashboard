@@ -2,7 +2,6 @@ use eframe::egui;
 
 use crate::{
     app::PiDashboardApp,
-    screen::Screen,
     services::volume::VolumeService,
     ui::components::{card, heading, label, scrollable_screen_container, status_row},
 };
@@ -69,7 +68,7 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                     app.volume.refresh();
                 }
                 if volume_button(ui, "Back", enabled) {
-                    app.screen = Screen::Home;
+                    app.go_back();
                 }
             });
         });

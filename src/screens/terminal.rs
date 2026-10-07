@@ -2,14 +2,13 @@ use eframe::egui;
 
 use crate::{
     app::PiDashboardApp,
-    screen::Screen,
     services::terminal::EntryKind,
     ui::components::{card, heading, label, screen_container},
 };
 
 pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
     if ui.input(|input| input.pointer.any_pressed()) {
-        app.screen = Screen::Home;
+        app.go_back();
         return;
     }
 

@@ -1,10 +1,10 @@
 use std::{
     fs,
     process::Command,
-    sync::mpsc::{self, Receiver, TryRecvError},
-    thread,
     time::{Duration, Instant},
 };
+
+use super::task::{BackgroundTask, TaskPoll};
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(2);
 
@@ -44,7 +44,7 @@ pub struct SystemInfoSnapshot {
 #[derive(Default)]
 pub struct SystemInfoService {
     snapshot: Option<SystemInfoSnapshot>,
-    receiver: Option<Receiver<RawSystemInfo>>,
+    task: BackgroundTask<RawSystemInfo>,
     previous_cpu_times: Option<CpuTimes>,
     last_refresh: Option<Instant>,
     error: Option<String>,
@@ -64,20 +64,14 @@ impl SystemInfoService {
             .last_refresh
             .is_none_or(|last_refresh| last_refresh.elapsed() >= REFRESH_INTERVAL);
 
-        if self.receiver.is_none() && refresh_due {
-            let (sender, receiver) = mpsc::channel();
-            self.receiver = Some(receiver);
-            thread::spawn(move || {
-                let _ = sender.send(read_system_info());
-            });
+        if !self.task.is_running() && refresh_due {
+            self.task.start(read_system_info);
         }
     }
 
     pub fn poll(&mut self) {
-        let result = self.receiver.as_ref().map(Receiver::try_recv);
-
-        match result {
-            Some(Ok(raw)) => {
+        match self.task.poll() {
+            TaskPoll::Ready(raw) => {
                 let cpu_percent = cpu_percent(self.previous_cpu_times, raw.cpu_times);
                 self.previous_cpu_times = raw.cpu_times;
                 self.snapshot = Some(SystemInfoSnapshot {
@@ -92,16 +86,14 @@ impl SystemInfoService {
                     hostname: raw.hostname,
                     ip_address: raw.ip_address,
                 });
-                self.receiver = None;
                 self.last_refresh = Some(Instant::now());
                 self.error = None;
             }
-            Some(Err(TryRecvError::Disconnected)) => {
-                self.receiver = None;
+            TaskPoll::Disconnected => {
                 self.last_refresh = Some(Instant::now());
                 self.error = Some("Could not refresh system information.".to_owned());
             }
-            Some(Err(TryRecvError::Empty)) | None => {}
+            TaskPoll::Pending => {}
         }
     }
 }

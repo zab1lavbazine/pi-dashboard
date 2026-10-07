@@ -8,6 +8,9 @@ pub enum Screen {
     Terminal,
     Media,
     MediaPlayer,
+    Player,
+    PlayerSettings,
+    PlayerDirectoryPicker,
     Power,
     Volume,
 }

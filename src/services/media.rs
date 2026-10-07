@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::Arc,
+    time::{Duration, Instant},
 };
 
 const MEDIA_DIRECTORY_ENV: &str = "PI_DASHBOARD_MEDIA_DIR";
@@ -18,6 +19,8 @@ pub struct MediaItem {
     gif_bytes: Arc<[u8]>,
     gif_uri: String,
     audio_path: Option<PathBuf>,
+    repeat: bool,
+    duration: Duration,
 }
 
 impl MediaItem {
@@ -49,6 +52,8 @@ struct MediaConfig {
     order: i32,
     #[serde(default = "enabled_by_default")]
     enabled: bool,
+    #[serde(default = "repeat_by_default")]
+    repeat: bool,
 }
 
 struct LoadedMedia {
@@ -65,6 +70,8 @@ pub struct MediaService {
     playback_error: Option<String>,
     audio_process: Option<Child>,
     player_active: bool,
+    playback_started: Option<Instant>,
+    playback_finished: bool,
     loaded: bool,
 }
 
@@ -83,6 +90,8 @@ impl Default for MediaService {
             playback_error: None,
             audio_process: None,
             player_active: false,
+            playback_started: None,
+            playback_finished: false,
             loaded: false,
         }
     }
@@ -101,6 +110,8 @@ impl MediaService {
         self.selected_index = None;
         self.load_errors.clear();
         self.playback_error = None;
+        self.playback_started = None;
+        self.playback_finished = false;
 
         let mut loaded_items = Vec::new();
         let directory_entries = match fs::read_dir(&self.config_directory) {
@@ -189,13 +200,28 @@ impl MediaService {
 
         self.player_active = active;
         if active {
+            self.playback_started = Some(Instant::now());
+            self.playback_finished = false;
             self.start_audio();
         } else {
+            self.playback_started = None;
             self.stop_audio();
         }
     }
 
     pub fn poll(&mut self) {
+        let gif_timed_one_shot_finished = self
+            .selected_item()
+            .filter(|item| {
+                !item.repeat && (item.audio_path.is_none() || self.playback_error.is_some())
+            })
+            .zip(self.playback_started)
+            .is_some_and(|(item, started)| started.elapsed() >= item.duration);
+        if self.player_active && gif_timed_one_shot_finished {
+            self.finish_playback();
+            return;
+        }
+
         let Some(process) = self.audio_process.as_mut() else {
             return;
         };
@@ -203,16 +229,32 @@ impl MediaService {
         match process.try_wait() {
             Ok(Some(status)) => {
                 self.audio_process = None;
-                if self.player_active && !status.success() {
+                let one_shot = self
+                    .selected_item()
+                    .is_some_and(|item| !item.repeat && self.player_active);
+                if !status.success() {
                     self.playback_error = Some(format!("Audio player exited with {status}."));
+                }
+                if one_shot {
+                    self.finish_playback();
                 }
             }
             Ok(None) => {}
             Err(error) => {
                 self.audio_process = None;
                 self.playback_error = Some(format!("Could not check audio playback: {error}"));
+                if self
+                    .selected_item()
+                    .is_some_and(|item| !item.repeat && self.player_active)
+                {
+                    self.finish_playback();
+                }
             }
         }
+    }
+
+    pub fn take_playback_finished(&mut self) -> bool {
+        std::mem::take(&mut self.playback_finished)
     }
 
     fn start_audio(&mut self) {
@@ -224,12 +266,25 @@ impl MediaService {
             return;
         };
 
-        let players: [(&str, &[&str]); 4] = [
+        let repeat = self.selected_item().is_some_and(|item| item.repeat);
+
+        let looping_players: [(&str, &[&str]); 4] = [
             ("mpg123", &["--quiet", "--loop", "-1"]),
             ("mpv", &["--no-video", "--really-quiet", "--loop-file=inf"]),
             ("ffplay", &["-nodisp", "-loglevel", "quiet", "-loop", "0"]),
             ("cvlc", &["--intf", "dummy", "--loop"]),
         ];
+        let one_shot_players: [(&str, &[&str]); 4] = [
+            ("mpg123", &["--quiet"]),
+            ("mpv", &["--no-video", "--really-quiet"]),
+            ("ffplay", &["-nodisp", "-autoexit", "-loglevel", "quiet"]),
+            ("cvlc", &["--intf", "dummy", "--play-and-exit"]),
+        ];
+        let players = if repeat {
+            looping_players
+        } else {
+            one_shot_players
+        };
 
         for (player, arguments) in players {
             match Command::new(player)
@@ -262,6 +317,13 @@ impl MediaService {
             let _ = process.kill();
             let _ = process.wait();
         }
+    }
+
+    fn finish_playback(&mut self) {
+        self.stop_audio();
+        self.player_active = false;
+        self.playback_started = None;
+        self.playback_finished = true;
     }
 }
 
@@ -318,6 +380,8 @@ fn load_item(
 
     let gif_bytes = fs::read(&gif_path)
         .map_err(|error| format!("Could not read GIF {}: {error}", gif_path.display()))?;
+    let duration = gif_duration(&gif_bytes)
+        .map_err(|error| format!("Could not decode GIF {}: {error}", gif_path.display()))?;
     if let Some(path) = &audio_path {
         fs::metadata(path)
             .map_err(|error| format!("Could not read audio {}: {error}", path.display()))?;
@@ -334,6 +398,8 @@ fn load_item(
             gif_bytes: Arc::from(gif_bytes),
             gif_uri,
             audio_path,
+            repeat: config.repeat,
+            duration,
         },
         order: config.order,
     }))
@@ -361,19 +427,46 @@ const fn enabled_by_default() -> bool {
     true
 }
 
+const fn repeat_by_default() -> bool {
+    true
+}
+
+fn gif_duration(bytes: &[u8]) -> Result<Duration, gif::DecodingError> {
+    let mut options = gif::DecodeOptions::new();
+    options.set_color_output(gif::ColorOutput::Indexed);
+    let mut decoder = options.read_info(std::io::Cursor::new(bytes))?;
+    let mut hundredths = 0_u64;
+
+    while let Some(frame) = decoder.read_next_frame()? {
+        hundredths = hundredths.saturating_add(u64::from(frame.delay.max(1)));
+    }
+
+    Ok(Duration::from_millis(hundredths.saturating_mul(10)).max(Duration::from_millis(10)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn loads_media_items_from_a_yaml_list() {
-        let config_path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("config/media/polish_cow.yaml");
-        let resource_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources");
-        let (items, errors) =
-            load_config_file(&config_path, &resource_directory).expect("configuration should load");
+        let yaml = r#"
+items:
+  - name: First item
+    gif: first/item.gif
+  - name: Second item
+    gif: second/item.gif
+    audio: second/music.mp3
+    repeat: false
+"#;
+        let config: MediaConfigFile =
+            yaml_serde::from_str(yaml).expect("configuration should parse");
 
-        assert!(errors.is_empty());
-        assert!(items.iter().any(|item| item.item.name == "Polish Cow"));
+        assert_eq!(config.items.len(), 2);
+        assert_eq!(config.items[0].name, "First item");
+        assert!(config.items[0].audio.is_none());
+        assert!(config.items[0].repeat);
+        assert_eq!(config.items[1].name, "Second item");
+        assert!(!config.items[1].repeat);
     }
 }

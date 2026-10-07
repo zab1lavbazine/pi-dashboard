@@ -2613,6 +2613,7 @@ dependencies = [
  "egui",
  "egui_extras",
  "env_logger",
+ "gif",
  "serde",
  "yaml_serde",
 ]

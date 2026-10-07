@@ -2,7 +2,6 @@ use eframe::egui;
 
 use crate::{
     app::PiDashboardApp,
-    screen::Screen,
     services::power::PowerAction,
     ui::components::{card, heading, label, scrollable_screen_container},
 };
@@ -56,7 +55,7 @@ fn show_actions(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
             !app.power.is_busy(),
         ) {
             app.power.cancel_confirmation();
-            app.screen = Screen::Home;
+            app.go_back();
         }
     });
 }

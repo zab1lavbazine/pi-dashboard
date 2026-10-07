@@ -1,8 +1,6 @@
-use std::{
-    process::Command,
-    sync::mpsc::{self, Receiver, TryRecvError},
-    thread,
-};
+use std::process::Command;
+
+use super::task::{BackgroundTask, TaskPoll};
 
 const COMMAND_TIMEOUT_SECONDS: &str = "10";
 const SCAN_TIMEOUT_SECONDS: &str = "8";
@@ -59,15 +57,21 @@ impl DeviceAction {
 }
 
 struct BluetoothTaskResult {
-    devices: Vec<BluetoothDevice>,
+    update: BluetoothUpdate,
     message: Option<String>,
+}
+
+enum BluetoothUpdate {
+    ReplaceAll(Vec<BluetoothDevice>),
+    UpdateOne(BluetoothDevice),
+    RemoveOne(String),
 }
 
 #[derive(Default)]
 pub struct BluetoothService {
     devices: Vec<BluetoothDevice>,
     selected_address: Option<String>,
-    task_receiver: Option<Receiver<Result<BluetoothTaskResult, String>>>,
+    task: BackgroundTask<Result<BluetoothTaskResult, String>>,
     busy_label: Option<String>,
     message: Option<(String, bool)>,
     initialized: bool,
@@ -93,7 +97,7 @@ impl BluetoothService {
     }
 
     pub fn is_busy(&self) -> bool {
-        self.task_receiver.is_some()
+        self.task.is_running()
     }
 
     pub fn busy_label(&self) -> Option<&str> {
@@ -112,35 +116,44 @@ impl BluetoothService {
         }
     }
 
-    pub fn poll(&mut self) {
-        let result = self.task_receiver.as_ref().map(Receiver::try_recv);
-
-        match result {
-            Some(Ok(Ok(result))) => {
-                self.devices = result.devices;
+    pub fn poll(&mut self) -> bool {
+        match self.task.poll() {
+            TaskPoll::Ready(Ok(result)) => {
+                self.apply_update(result.update);
                 self.message = result.message.map(|message| (message, false));
                 self.finish_task();
+                true
             }
-            Some(Ok(Err(error))) => {
+            TaskPoll::Ready(Err(error)) => {
                 self.message = Some((error, true));
                 self.finish_task();
+                true
             }
-            Some(Err(TryRecvError::Disconnected)) => {
+            TaskPoll::Disconnected => {
                 self.message = Some(("Bluetooth task ended unexpectedly.".to_owned(), true));
                 self.finish_task();
+                true
             }
-            Some(Err(TryRecvError::Empty)) | None => {}
+            TaskPoll::Pending => false,
         }
     }
 
     pub fn refresh(&mut self) {
-        self.start_task("Refreshing devices…", || Ok(None));
+        self.start_task("Refreshing devices…", || {
+            Ok(BluetoothTaskResult {
+                update: BluetoothUpdate::ReplaceAll(list_devices()?),
+                message: None,
+            })
+        });
     }
 
     pub fn scan(&mut self) {
         self.start_task("Scanning for devices…", || {
             scan()?;
-            Ok(Some("Scan complete.".to_owned()))
+            Ok(BluetoothTaskResult {
+                update: BluetoothUpdate::ReplaceAll(list_devices()?),
+                message: Some("Scan complete.".to_owned()),
+            })
         });
     }
 
@@ -148,38 +161,65 @@ impl BluetoothService {
         let Some(address) = self.selected_address.clone() else {
             return;
         };
+        let fallback_name = self
+            .selected_device()
+            .map(|device| device.name.clone())
+            .unwrap_or_else(|| address.clone());
 
         self.start_task(action.progress_label(), move || {
             perform_action(action, &address)?;
-            Ok(Some(action.success_label().to_owned()))
+            let update = if matches!(action, DeviceAction::Remove) {
+                BluetoothUpdate::RemoveOne(address)
+            } else {
+                BluetoothUpdate::UpdateOne(read_device(&address, fallback_name)?)
+            };
+            Ok(BluetoothTaskResult {
+                update,
+                message: Some(action.success_label().to_owned()),
+            })
         });
     }
 
+    fn apply_update(&mut self, update: BluetoothUpdate) {
+        match update {
+            BluetoothUpdate::ReplaceAll(devices) => self.devices = devices,
+            BluetoothUpdate::UpdateOne(device) => {
+                if let Some(existing) = self
+                    .devices
+                    .iter_mut()
+                    .find(|existing| existing.address == device.address)
+                {
+                    *existing = device;
+                } else {
+                    self.devices.push(device);
+                }
+            }
+            BluetoothUpdate::RemoveOne(address) => {
+                self.devices.retain(|device| device.address != address);
+                if self.selected_address.as_deref() == Some(address.as_str()) {
+                    self.selected_address = None;
+                }
+            }
+        }
+        sort_devices(&mut self.devices);
+    }
+
     fn finish_task(&mut self) {
-        self.task_receiver = None;
         self.busy_label = None;
         self.initialized = true;
     }
 
     fn start_task<F>(&mut self, busy_label: &str, operation: F)
     where
-        F: FnOnce() -> Result<Option<String>, String> + Send + 'static,
+        F: FnOnce() -> Result<BluetoothTaskResult, String> + Send + 'static,
     {
         if self.is_busy() {
             return;
         }
 
-        let (sender, receiver) = mpsc::channel();
-        self.task_receiver = Some(receiver);
         self.busy_label = Some(busy_label.to_owned());
         self.message = None;
-
-        thread::spawn(move || {
-            let result = operation().and_then(|message| {
-                list_devices().map(|devices| BluetoothTaskResult { devices, message })
-            });
-            let _ = sender.send(result);
-        });
+        self.task.start(operation);
     }
 }
 
@@ -192,25 +232,27 @@ fn list_devices() -> Result<Vec<BluetoothDevice>, String> {
             continue;
         };
 
-        let info = run(&[
-            "--timeout",
-            COMMAND_TIMEOUT_SECONDS,
-            "info",
-            &device.address,
-        ])
-        .unwrap_or_default();
-
-        devices.push(BluetoothDevice {
-            name: property(&info, "Name")
-                .or_else(|| property(&info, "Alias"))
-                .unwrap_or(device.name),
-            paired: yes_property(&info, "Paired"),
-            trusted: yes_property(&info, "Trusted"),
-            connected: yes_property(&info, "Connected"),
-            ..device
-        });
+        devices.push(read_device(&device.address, device.name.clone()).unwrap_or(device));
     }
 
+    sort_devices(&mut devices);
+    Ok(devices)
+}
+
+fn read_device(address: &str, fallback_name: String) -> Result<BluetoothDevice, String> {
+    let info = run(&["--timeout", COMMAND_TIMEOUT_SECONDS, "info", address])?;
+    Ok(BluetoothDevice {
+        address: address.to_owned(),
+        name: property(&info, "Name")
+            .or_else(|| property(&info, "Alias"))
+            .unwrap_or(fallback_name),
+        paired: yes_property(&info, "Paired"),
+        trusted: yes_property(&info, "Trusted"),
+        connected: yes_property(&info, "Connected"),
+    })
+}
+
+fn sort_devices(devices: &mut [BluetoothDevice]) {
     devices.sort_by_key(|device| {
         (
             !device.connected,
@@ -218,7 +260,6 @@ fn list_devices() -> Result<Vec<BluetoothDevice>, String> {
             device.name.to_lowercase(),
         )
     });
-    Ok(devices)
 }
 
 fn scan() -> Result<(), String> {
@@ -243,6 +284,25 @@ fn perform_action(action: DeviceAction, address: &str) -> Result<(), String> {
     arguments.extend([action.command(), address]);
 
     run(&arguments).map(|_| ())
+}
+
+pub fn ensure_device_connected(address: &str) -> Result<(), String> {
+    if !valid_address(address) {
+        return Err("The default Bluetooth address is invalid.".to_owned());
+    }
+
+    let info = run(&["--timeout", COMMAND_TIMEOUT_SECONDS, "info", address])?;
+    if yes_property(&info, "Connected") {
+        return Ok(());
+    }
+    if !yes_property(&info, "Paired") {
+        return Err(
+            "The default Bluetooth device is not paired. Pair it on the Bluetooth screen first."
+                .to_owned(),
+        );
+    }
+
+    perform_action(DeviceAction::Connect, address)
 }
 
 fn run(arguments: &[&str]) -> Result<String, String> {
@@ -323,5 +383,41 @@ mod tests {
     fn rejects_invalid_device_address() {
         assert!(!valid_address("not-an-address"));
         assert!(!valid_address("AA:BB:CC:DD:EE"));
+    }
+
+    #[test]
+    fn partial_update_keeps_other_devices() {
+        let mut service = BluetoothService {
+            devices: vec![
+                test_device("AA:BB:CC:DD:EE:01", "First", false),
+                test_device("AA:BB:CC:DD:EE:02", "Second", false),
+            ],
+            ..Default::default()
+        };
+
+        service.apply_update(BluetoothUpdate::UpdateOne(test_device(
+            "AA:BB:CC:DD:EE:01",
+            "First",
+            true,
+        )));
+
+        assert_eq!(service.devices.len(), 2);
+        assert!(
+            service
+                .devices
+                .iter()
+                .find(|device| device.address == "AA:BB:CC:DD:EE:01")
+                .is_some_and(|device| device.connected)
+        );
+    }
+
+    fn test_device(address: &str, name: &str, connected: bool) -> BluetoothDevice {
+        BluetoothDevice {
+            address: address.to_owned(),
+            name: name.to_owned(),
+            paired: true,
+            trusted: true,
+            connected,
+        }
     }
 }

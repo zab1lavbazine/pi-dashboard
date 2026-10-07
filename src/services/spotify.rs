@@ -1,8 +1,11 @@
 use std::process::Command;
 
-#[derive(Debug, Clone, Default)]
+use super::task::{BackgroundTask, TaskPoll};
+
+#[derive(Default)]
 pub struct SpotifyService {
     running: bool,
+    task: BackgroundTask<bool>,
 }
 
 impl SpotifyService {
@@ -11,9 +14,19 @@ impl SpotifyService {
     }
 
     pub fn refresh(&mut self) {
-        self.running = Command::new("systemctl")
-            .args(["--user", "is-active", "--quiet", "spotify-connect.service"])
-            .status()
-            .is_ok_and(|status| status.success());
+        self.task.start(|| {
+            Command::new("systemctl")
+                .args(["--user", "is-active", "--quiet", "spotify-connect.service"])
+                .status()
+                .is_ok_and(|status| status.success())
+        });
+    }
+
+    pub fn poll(&mut self) {
+        match self.task.poll() {
+            TaskPoll::Ready(running) => self.running = running,
+            TaskPoll::Disconnected => self.running = false,
+            TaskPoll::Pending => {}
+        }
     }
 }

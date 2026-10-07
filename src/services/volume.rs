@@ -1,8 +1,6 @@
-use std::{
-    process::Command,
-    sync::mpsc::{self, Receiver, TryRecvError},
-    thread,
-};
+use std::process::Command;
+
+use super::task::{BackgroundTask, TaskPoll};
 
 #[derive(Clone, Copy, PartialEq)]
 enum AudioBackend {
@@ -48,7 +46,7 @@ pub struct VolumeService {
     level: Option<u8>,
     muted: bool,
     backend: Option<AudioBackend>,
-    task_receiver: Option<Receiver<Result<VolumeSnapshot, String>>>,
+    task: BackgroundTask<Result<VolumeSnapshot, String>>,
     busy_label: Option<String>,
     message: Option<(String, bool)>,
     initialized: bool,
@@ -68,7 +66,7 @@ impl VolumeService {
     }
 
     pub fn is_busy(&self) -> bool {
-        self.task_receiver.is_some()
+        self.task.is_running()
     }
 
     pub fn busy_label(&self) -> Option<&str> {
@@ -104,25 +102,23 @@ impl VolumeService {
     }
 
     pub fn poll(&mut self) {
-        let result = self.task_receiver.as_ref().map(Receiver::try_recv);
-
-        match result {
-            Some(Ok(Ok(snapshot))) => {
+        match self.task.poll() {
+            TaskPoll::Ready(Ok(snapshot)) => {
                 self.level = Some(snapshot.level);
                 self.muted = snapshot.muted;
                 self.backend = Some(snapshot.backend);
                 self.message = None;
                 self.finish_task();
             }
-            Some(Ok(Err(error))) => {
+            TaskPoll::Ready(Err(error)) => {
                 self.message = Some((error, true));
                 self.finish_task();
             }
-            Some(Err(TryRecvError::Disconnected)) => {
+            TaskPoll::Disconnected => {
                 self.message = Some(("Volume task ended unexpectedly.".to_owned(), true));
                 self.finish_task();
             }
-            Some(Err(TryRecvError::Empty)) | None => {}
+            TaskPoll::Pending => {}
         }
     }
 
@@ -132,19 +128,13 @@ impl VolumeService {
         }
 
         let preferred_backend = self.backend;
-        let (sender, receiver) = mpsc::channel();
-        self.task_receiver = Some(receiver);
         self.busy_label = Some(label.to_owned());
         self.message = None;
-
-        thread::spawn(move || {
-            let result = run_task(preferred_backend, operation);
-            let _ = sender.send(result);
-        });
+        self.task
+            .start(move || run_task(preferred_backend, operation));
     }
 
     fn finish_task(&mut self) {
-        self.task_receiver = None;
         self.busy_label = None;
         self.initialized = true;
     }

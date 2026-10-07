@@ -2,6 +2,7 @@ pub mod bluetooth;
 pub mod home;
 pub mod media;
 pub mod network;
+pub mod player;
 pub mod power;
 pub mod spotify;
 pub mod system_info;

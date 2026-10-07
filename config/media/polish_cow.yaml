@@ -5,15 +5,18 @@ items:
     audio: polish_cow/polish_cow.mp3
     order: 10
     enabled: true
+    repeat: true
 
   - name: First of the month
     gif: first_of_the_month/first_of_the_month.gif
     audio: first_of_the_month/first_of_the_month.mp3
     order: 10
     enabled: true
+    repeat: false
   # Add more entries here. The audio field is optional.
   # - name: Another animation
   #   gif: another/animation.gif
   #   audio: another/music.mp3
   #   order: 20
   #   enabled: true
+  #   repeat: true

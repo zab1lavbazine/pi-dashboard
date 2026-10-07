@@ -3,7 +3,6 @@ use eframe::egui;
 use crate::{
     app::PiDashboardApp,
     layout::layout::calculate_layout,
-    screen::Screen,
     ui::components::{big_button, card, heading, scrollable_screen_container, status_row},
 };
 
@@ -34,7 +33,7 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                 "Back",
                 [layout.button_width, layout.button_height],
                 || {
-                    app.screen = Screen::Home;
+                    app.go_back();
                 },
             );
         });

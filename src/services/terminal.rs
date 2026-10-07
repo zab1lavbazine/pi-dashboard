@@ -1,8 +1,6 @@
-use std::{
-    process::Command,
-    sync::mpsc::{self, Receiver, TryRecvError},
-    thread,
-};
+use std::process::Command;
+
+use super::task::{BackgroundTask, TaskPoll};
 
 const MAX_HISTORY_LINES: usize = 500;
 
@@ -27,8 +25,7 @@ struct CommandResult {
 
 pub struct TerminalService {
     history: Vec<TerminalEntry>,
-    result_receiver: Option<Receiver<CommandResult>>,
-    running: bool,
+    task: BackgroundTask<CommandResult>,
 }
 
 impl Default for TerminalService {
@@ -38,8 +35,7 @@ impl Default for TerminalService {
                 text: "Type a command and press Enter.".to_owned(),
                 kind: EntryKind::Info,
             }],
-            result_receiver: None,
-            running: false,
+            task: BackgroundTask::default(),
         }
     }
 }
@@ -50,14 +46,12 @@ impl TerminalService {
     }
 
     pub fn is_running(&self) -> bool {
-        self.running
+        self.task.is_running()
     }
 
     pub fn poll(&mut self) {
-        let result = self.result_receiver.as_ref().map(Receiver::try_recv);
-
-        match result {
-            Some(Ok(result)) => {
+        match self.task.poll() {
+            TaskPoll::Ready(result) => {
                 self.push_lines(&result.stdout, EntryKind::Output);
                 self.push_lines(&result.stderr, EntryKind::Error);
 
@@ -70,21 +64,21 @@ impl TerminalService {
 
                 self.finish_command();
             }
-            Some(Err(TryRecvError::Disconnected)) => {
+            TaskPoll::Disconnected => {
                 self.history.push(TerminalEntry {
                     text: "The command process ended unexpectedly.".to_owned(),
                     kind: EntryKind::Error,
                 });
                 self.finish_command();
             }
-            Some(Err(TryRecvError::Empty)) | None => {}
+            TaskPoll::Pending => {}
         }
     }
 
     pub fn submit(&mut self, command: String) {
         let command = command.trim().to_owned();
 
-        if command.is_empty() || self.running {
+        if command.is_empty() || self.is_running() {
             return;
         }
 
@@ -98,12 +92,8 @@ impl TerminalService {
             return;
         }
 
-        let (sender, receiver) = mpsc::channel();
-        self.result_receiver = Some(receiver);
-        self.running = true;
-
-        thread::spawn(move || {
-            let result = match Command::new("sh").args(["-lc", &command]).output() {
+        self.task.start(
+            move || match Command::new("sh").args(["-lc", &command]).output() {
                 Ok(output) => CommandResult {
                     stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
                     stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -114,15 +104,11 @@ impl TerminalService {
                     stderr: format!("Could not start the shell: {error}"),
                     exit_code: None,
                 },
-            };
-
-            let _ = sender.send(result);
-        });
+            },
+        );
     }
 
     fn finish_command(&mut self) {
-        self.result_receiver = None;
-        self.running = false;
         self.trim_history();
     }
 

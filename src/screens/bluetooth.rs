@@ -30,7 +30,7 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
 
             ui.add_space(12.0);
             big_button(ui, "Back", size, || {
-                app.screen = Screen::Home;
+                app.go_back();
             });
         });
 
@@ -70,7 +70,7 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                 if device_button(ui, "Manage", !app.bluetooth.is_busy())
                     && app.bluetooth.select_device(&device.address)
                 {
-                    app.screen = Screen::BluetoothDevice;
+                    app.navigate_to(Screen::BluetoothDevice);
                 }
             });
             ui.add_space(12.0);
@@ -95,7 +95,7 @@ pub fn show_device(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
             ui.add_space(12.0);
 
             if device_button(ui, "Back to devices", true) {
-                app.screen = Screen::Bluetooth;
+                app.go_back();
             }
             return;
         };
@@ -147,7 +147,7 @@ pub fn show_device(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
 
             ui.add_space(8.0);
             if device_button(ui, "Back to devices", enabled) {
-                app.screen = Screen::Bluetooth;
+                app.go_back();
             }
         });
     });

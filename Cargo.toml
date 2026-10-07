@@ -8,5 +8,6 @@ eframe = "0.36.2"
 egui = "0.36.2"
 egui_extras = { version = "0.36.2", features = ["gif"] }
 env_logger = "0.11.11"
+gif = "0.14.2"
 serde = { version = "1.0", features = ["derive"] }
 yaml_serde = "0.10.7"

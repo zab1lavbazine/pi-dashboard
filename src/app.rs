@@ -1,10 +1,11 @@
 use crate::screen::Screen;
 use crate::screens::{
-    bluetooth, home, media, network, power, spotify, system_info, terminal, volume,
+    bluetooth, home, media, network, player, power, spotify, system_info, terminal, volume,
 };
 use crate::services::{
-    bluetooth::BluetoothService, media::MediaService, power::PowerService, spotify::SpotifyService,
-    system_info::SystemInfoService, terminal::TerminalService, volume::VolumeService,
+    bluetooth::BluetoothService, media::MediaService, player::PlayerService, power::PowerService,
+    spotify::SpotifyService, system_info::SystemInfoService, terminal::TerminalService,
+    volume::VolumeService,
 };
 use std::time::{Duration, Instant};
 
@@ -13,11 +14,13 @@ pub struct PiDashboardApp {
     pub spotify: SpotifyService,
     pub bluetooth: BluetoothService,
     pub media: MediaService,
+    pub player: PlayerService,
     pub power: PowerService,
     pub system_info: SystemInfoService,
     pub volume: VolumeService,
     pub terminal: TerminalService,
     pub terminal_input: String,
+    navigation_history: Vec<Screen>,
     last_user_activity: Instant,
     idle_overlay_visible: bool,
     last_status_refresh: Instant,
@@ -30,11 +33,13 @@ impl Default for PiDashboardApp {
             spotify: SpotifyService::default(),
             bluetooth: BluetoothService::default(),
             media: MediaService::default(),
+            player: PlayerService::default(),
             power: PowerService::default(),
             system_info: SystemInfoService::default(),
             volume: VolumeService::default(),
             terminal: TerminalService::default(),
             terminal_input: String::new(),
+            navigation_history: Vec::new(),
             last_user_activity: Instant::now(),
             idle_overlay_visible: false,
             last_status_refresh: Instant::now(),
@@ -86,6 +91,9 @@ impl eframe::App for PiDashboardApp {
             Screen::Terminal => terminal::show(self, ui),
             Screen::Media => media::show_menu(self, ui),
             Screen::MediaPlayer => media::show_player(self, ui),
+            Screen::Player => player::show(self, ui),
+            Screen::PlayerSettings => player::show_settings(self, ui),
+            Screen::PlayerDirectoryPicker => player::show_directory_picker(self, ui),
             Screen::Power => power::show(self, ui),
             Screen::Volume => volume::show(self, ui),
         }
@@ -93,12 +101,19 @@ impl eframe::App for PiDashboardApp {
 
     fn logic(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_pixels_per_point(1.2);
-        self.bluetooth.poll();
+        if self.bluetooth.poll() {
+            ctx.request_repaint();
+        }
         self.terminal.poll();
         self.media
             .set_player_active(self.screen == Screen::MediaPlayer);
         self.media.poll();
+        if self.media.take_playback_finished() && self.screen == Screen::MediaPlayer {
+            self.go_back();
+        }
+        self.player.poll();
         self.power.poll();
+        self.spotify.poll();
         self.volume.poll();
         self.system_info.poll();
 
@@ -135,7 +150,68 @@ fn has_user_activity(ui: &eframe::egui::Ui) -> bool {
 }
 
 impl PiDashboardApp {
+    pub fn navigate_to(&mut self, screen: Screen) {
+        if screen == Screen::Home {
+            self.go_home();
+        } else if screen != self.screen {
+            self.navigation_history.push(self.screen);
+            self.screen = screen;
+        }
+    }
+
+    pub fn go_back(&mut self) {
+        let previous = self.navigation_history.pop().unwrap_or(Screen::Home);
+        self.screen = previous;
+        if previous == Screen::Home {
+            self.navigation_history.clear();
+        }
+    }
+
+    pub fn go_home(&mut self) {
+        self.screen = Screen::Home;
+        self.navigation_history.clear();
+    }
+
+    pub fn clear_navigation_history(&mut self) {
+        if self.screen == Screen::Home {
+            self.navigation_history.clear();
+        }
+    }
+
     fn refresh_services(&mut self) {
         self.spotify.refresh();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn navigation_returns_in_the_order_screens_were_opened() {
+        let mut app = PiDashboardApp::default();
+
+        app.navigate_to(Screen::Player);
+        app.navigate_to(Screen::PlayerSettings);
+        app.navigate_to(Screen::PlayerDirectoryPicker);
+        app.go_back();
+        assert!(app.screen == Screen::PlayerSettings);
+        app.go_back();
+        assert!(app.screen == Screen::Player);
+        app.go_back();
+        assert!(app.screen == Screen::Home);
+        assert!(app.navigation_history.is_empty());
+    }
+
+    #[test]
+    fn going_home_clears_navigation_history() {
+        let mut app = PiDashboardApp::default();
+        app.navigate_to(Screen::Bluetooth);
+        app.navigate_to(Screen::BluetoothDevice);
+
+        app.go_home();
+
+        assert!(app.screen == Screen::Home);
+        assert!(app.navigation_history.is_empty());
     }
 }

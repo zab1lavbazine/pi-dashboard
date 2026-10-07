@@ -1,8 +1,6 @@
-use std::{
-    process::Command,
-    sync::mpsc::{self, Receiver, TryRecvError},
-    thread,
-};
+use std::process::Command;
+
+use super::task::{BackgroundTask, TaskPoll};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PowerAction {
@@ -36,7 +34,7 @@ impl PowerAction {
 #[derive(Default)]
 pub struct PowerService {
     confirmation: Option<PowerAction>,
-    task_receiver: Option<Receiver<Result<String, String>>>,
+    task: BackgroundTask<Result<String, String>>,
     message: Option<(String, bool)>,
 }
 
@@ -57,7 +55,7 @@ impl PowerService {
     }
 
     pub fn is_busy(&self) -> bool {
-        self.task_receiver.is_some()
+        self.task.is_running()
     }
 
     pub fn message(&self) -> Option<(&str, bool)> {
@@ -75,32 +73,22 @@ impl PowerService {
             return;
         };
 
-        let (sender, receiver) = mpsc::channel();
-        self.task_receiver = Some(receiver);
         self.message = None;
-
-        thread::spawn(move || {
-            let _ = sender.send(run_action(action));
-        });
+        self.task.start(move || run_action(action));
     }
 
     pub fn poll(&mut self) {
-        let result = self.task_receiver.as_ref().map(Receiver::try_recv);
-
-        match result {
-            Some(Ok(Ok(message))) => {
+        match self.task.poll() {
+            TaskPoll::Ready(Ok(message)) => {
                 self.message = Some((message, false));
-                self.task_receiver = None;
             }
-            Some(Ok(Err(error))) => {
+            TaskPoll::Ready(Err(error)) => {
                 self.message = Some((error, true));
-                self.task_receiver = None;
             }
-            Some(Err(TryRecvError::Disconnected)) => {
+            TaskPoll::Disconnected => {
                 self.message = Some(("Power command ended unexpectedly.".to_owned(), true));
-                self.task_receiver = None;
             }
-            Some(Err(TryRecvError::Empty)) | None => {}
+            TaskPoll::Pending => {}
         }
     }
 }

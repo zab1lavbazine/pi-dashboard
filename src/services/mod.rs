@@ -1,7 +1,9 @@
 pub mod bluetooth;
 pub mod media;
+pub mod player;
 pub mod power;
 pub mod spotify;
 pub mod system_info;
+pub mod task;
 pub mod terminal;
 pub mod volume;

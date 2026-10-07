@@ -10,6 +10,7 @@ use crate::{
 const NUMBER_OF_COLUMNS: usize = 3;
 
 pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
+    app.clear_navigation_history();
     scrollable_screen_container(ui, |ui| {
         heading(ui, "Pi Dashboard");
         ui.add_space(16.0);
@@ -23,27 +24,30 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                 .show(ui, |ui| {
                     let size = [layout.button_width, layout.button_height];
                     big_button(ui, "Spotify", size, || {
-                        app.screen = Screen::Spotify;
+                        app.navigate_to(Screen::Spotify);
                     });
                     big_button(ui, "Bluetooth", size, || {
-                        app.screen = Screen::Bluetooth;
+                        app.navigate_to(Screen::Bluetooth);
                     });
                     big_button(ui, "Network", size, || {
-                        app.screen = Screen::Network;
+                        app.navigate_to(Screen::Network);
                     });
                     ui.end_row();
                     big_button(ui, "Terminal", size, || {
-                        app.screen = Screen::Terminal;
+                        app.navigate_to(Screen::Terminal);
                     });
                     big_button(ui, "Media", size, || {
-                        app.screen = Screen::Media;
+                        app.navigate_to(Screen::Media);
                     });
                     big_button(ui, "Power", size, || {
-                        app.screen = Screen::Power;
+                        app.navigate_to(Screen::Power);
                     });
                     ui.end_row();
                     big_button(ui, "Volume", size, || {
-                        app.screen = Screen::Volume;
+                        app.navigate_to(Screen::Volume);
+                    });
+                    big_button(ui, "Player", size, || {
+                        app.navigate_to(Screen::Player);
                     });
                     ui.end_row();
                 });

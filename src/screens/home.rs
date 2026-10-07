@@ -35,8 +35,8 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                     big_button(ui, "Terminal", size, || {
                         app.screen = Screen::Terminal;
                     });
-                    big_button(ui, "Cow", size, || {
-                        app.screen = Screen::Cow;
+                    big_button(ui, "Media", size, || {
+                        app.screen = Screen::Media;
                     });
                     big_button(ui, "Power", size, || {
                         app.screen = Screen::Power;

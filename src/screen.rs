@@ -6,7 +6,8 @@ pub enum Screen {
     BluetoothDevice,
     Network,
     Terminal,
-    Cow,
+    Media,
+    MediaPlayer,
     Power,
     Volume,
 }

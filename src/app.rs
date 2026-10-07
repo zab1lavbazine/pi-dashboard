@@ -1,9 +1,9 @@
 use crate::screen::Screen;
 use crate::screens::{
-    bluetooth, cow, home, network, power, spotify, system_info, terminal, volume,
+    bluetooth, home, media, network, power, spotify, system_info, terminal, volume,
 };
 use crate::services::{
-    bluetooth::BluetoothService, cow::CowService, power::PowerService, spotify::SpotifyService,
+    bluetooth::BluetoothService, media::MediaService, power::PowerService, spotify::SpotifyService,
     system_info::SystemInfoService, terminal::TerminalService, volume::VolumeService,
 };
 use std::time::{Duration, Instant};
@@ -12,7 +12,7 @@ pub struct PiDashboardApp {
     pub screen: Screen,
     pub spotify: SpotifyService,
     pub bluetooth: BluetoothService,
-    pub cow: CowService,
+    pub media: MediaService,
     pub power: PowerService,
     pub system_info: SystemInfoService,
     pub volume: VolumeService,
@@ -29,7 +29,7 @@ impl Default for PiDashboardApp {
             screen: Screen::Home,
             spotify: SpotifyService::default(),
             bluetooth: BluetoothService::default(),
-            cow: CowService::default(),
+            media: MediaService::default(),
             power: PowerService::default(),
             system_info: SystemInfoService::default(),
             volume: VolumeService::default(),
@@ -84,7 +84,8 @@ impl eframe::App for PiDashboardApp {
             Screen::BluetoothDevice => bluetooth::show_device(self, ui),
             Screen::Network => network::show(self, ui),
             Screen::Terminal => terminal::show(self, ui),
-            Screen::Cow => cow::show(self, ui),
+            Screen::Media => media::show_menu(self, ui),
+            Screen::MediaPlayer => media::show_player(self, ui),
             Screen::Power => power::show(self, ui),
             Screen::Volume => volume::show(self, ui),
         }
@@ -94,8 +95,9 @@ impl eframe::App for PiDashboardApp {
         ctx.set_pixels_per_point(1.2);
         self.bluetooth.poll();
         self.terminal.poll();
-        self.cow.set_active(self.screen == Screen::Cow);
-        self.cow.poll();
+        self.media
+            .set_player_active(self.screen == Screen::MediaPlayer);
+        self.media.poll();
         self.power.poll();
         self.volume.poll();
         self.system_info.poll();

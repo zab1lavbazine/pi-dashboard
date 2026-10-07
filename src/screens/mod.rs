@@ -1,6 +1,6 @@
 pub mod bluetooth;
-pub mod cow;
 pub mod home;
+pub mod media;
 pub mod network;
 pub mod power;
 pub mod spotify;

@@ -1,5 +1,5 @@
 pub mod bluetooth;
-pub mod cow;
+pub mod media;
 pub mod power;
 pub mod spotify;
 pub mod system_info;

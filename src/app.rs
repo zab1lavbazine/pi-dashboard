@@ -183,6 +183,11 @@ impl PiDashboardApp {
     }
 }
 
+// ---------------------------TEST--------------------------------
+/*
+    TESTS for current class
+*/
+
 #[cfg(test)]
 mod tests {
     use super::*;

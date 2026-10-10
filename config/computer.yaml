@@ -1,0 +1,4 @@
+# Tailscale machine name of the Windows computer monitored by the Pi.
+computer_name: DESKTOP-ROC6H5H
+port: 8080
+path: /ws

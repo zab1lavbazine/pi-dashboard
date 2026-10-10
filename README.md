@@ -16,6 +16,7 @@ The default window is designed for an 800×480 display. Screens use large contro
 - Volume control through PipeWire, PulseAudio, or ALSA.
 - Shutdown and reboot confirmation screens.
 - Spotify Connect systemd-service status.
+- Remote computer system status over WebSocket.
 - Keyboard-operated terminal view.
 - System information overlay after 10 seconds of inactivity on the Home screen.
 - Shared background-task abstraction for non-blocking system operations.
@@ -177,6 +178,40 @@ PI_DASHBOARD_RESOURCE_DIR=/opt/pi-dashboard/resources \
 PI_DASHBOARD_PLAYER_CONFIG=/opt/pi-dashboard/config/player.yaml \
 ./pi-dashboard
 ```
+
+The Computer screen normally discovers its WebSocket host through Tailscale.
+Configure `config/computer.yaml`:
+
+```yaml
+# Empty automatically selects the only other device in a two-device tailnet.
+computer_name: ""
+port: 8080
+path: /ws
+```
+
+Set `computer_name` to the target's Tailscale machine name when the tailnet has
+multiple peers. The dashboard runs `tailscale status --json`, finds the matching
+peer, and connects to its Tailscale IP. The name may be the short hostname shown
+by `tailscale status` or its MagicDNS name.
+
+The configuration path can be changed with
+`PI_DASHBOARD_COMPUTER_CONFIG`. A complete URL can also override Tailscale
+discovery for troubleshooting:
+
+```bash
+PI_DASHBOARD_COMPUTER_WS_URL=ws://192.168.1.20:8080/ws ./pi-dashboard
+```
+
+Each text message must be a JSON object. The screen displays every top-level
+field; numeric `cpu` and `ram` values are formatted as percentages. For example:
+
+```json
+{"hostname":"office-pc","cpu":24.5,"ram":61,"temperature":54}
+```
+
+The companion Rust application in `windows-system-monitor/` collects and sends
+these values from Windows. Its README contains foreground testing, native
+Windows Service installation, and firewall instructions.
 
 ## Configurable media
 

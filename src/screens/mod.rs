@@ -1,4 +1,5 @@
 pub mod bluetooth;
+pub mod computer;
 pub mod home;
 pub mod media;
 pub mod network;

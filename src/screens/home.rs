@@ -49,6 +49,9 @@ pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
                     big_button(ui, "Player", size, || {
                         app.navigate_to(Screen::Player);
                     });
+                    big_button(ui, "Computer", size, || {
+                        app.navigate_to(Screen::Computer);
+                    });
                     ui.end_row();
                 });
         });

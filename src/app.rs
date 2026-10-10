@@ -1,17 +1,19 @@
 use crate::screen::Screen;
 use crate::screens::{
-    bluetooth, home, media, network, player, power, spotify, system_info, terminal, volume,
+    bluetooth, computer, home, media, network, player, power, spotify, system_info, terminal,
+    volume,
 };
 use crate::services::{
-    bluetooth::BluetoothService, media::MediaService, player::PlayerService, power::PowerService,
-    spotify::SpotifyService, system_info::SystemInfoService, terminal::TerminalService,
-    volume::VolumeService,
+    bluetooth::BluetoothService, computer::ComputerService, media::MediaService,
+    player::PlayerService, power::PowerService, spotify::SpotifyService,
+    system_info::SystemInfoService, terminal::TerminalService, volume::VolumeService,
 };
 use std::time::{Duration, Instant};
 
 pub struct PiDashboardApp {
     pub screen: Screen,
     pub spotify: SpotifyService,
+    pub computer: ComputerService,
     pub bluetooth: BluetoothService,
     pub media: MediaService,
     pub player: PlayerService,
@@ -31,6 +33,7 @@ impl Default for PiDashboardApp {
         Self {
             screen: Screen::Home,
             spotify: SpotifyService::default(),
+            computer: ComputerService::default(),
             bluetooth: BluetoothService::default(),
             media: MediaService::default(),
             player: PlayerService::default(),
@@ -84,6 +87,7 @@ impl eframe::App for PiDashboardApp {
 
         match self.screen {
             Screen::Home => home::show(self, ui),
+            Screen::Computer => computer::show(self, ui),
             Screen::Spotify => spotify::show(self, ui),
             Screen::Bluetooth => bluetooth::show(self, ui),
             Screen::BluetoothDevice => bluetooth::show_device(self, ui),
@@ -114,6 +118,9 @@ impl eframe::App for PiDashboardApp {
         self.player.poll();
         self.power.poll();
         self.spotify.poll();
+        if self.computer.poll() {
+            ctx.request_repaint();
+        }
         self.volume.poll();
         self.system_info.poll();
 

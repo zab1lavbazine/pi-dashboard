@@ -67,7 +67,7 @@ upload-pi: build-pi prepare-pi
 	scp $(PI_BINARY) $(PI_HOST):$(PI_BINARY_NEW)
 
 upload-config: prepare-pi
-	scp -r config/media/. $(PI_HOST):$(PI_DIR)/config/media/
+	scp -r config/. $(PI_HOST):$(PI_DIR)/config/
 
 upload-player-config: prepare-pi
 	scp config/player.yaml $(PI_HOST):$(PI_DIR)/config/player.yaml

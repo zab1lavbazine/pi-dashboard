@@ -4,6 +4,8 @@ Pi Dashboard is a touchscreen-oriented Raspberry Pi application written in Rust 
 
 The default window is designed for an 800×480 display. Screens use large controls and scrollable cards so the main features can be operated without a keyboard.
 
+The interface uses a retro green-phosphor CRT theme: monospace text, inverted title bars, square outlined controls, and subtle static scanlines. Full-screen media playback is shown without scanlines. The shared palette and visual settings live in `src/ui/theme.rs`; warning and error colors remain distinct for readability.
+
 ## Features
 
 - Touch-friendly home screen and LIFO Back navigation.

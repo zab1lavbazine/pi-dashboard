@@ -55,6 +55,9 @@ const IDLE_OVERLAY_DELAY: Duration = Duration::from_secs(10);
 
 impl eframe::App for PiDashboardApp {
     fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+        if self.screen != Screen::MediaPlayer {
+            crate::ui::theme::scanlines(ui);
+        }
         let user_activity = has_user_activity(ui);
         let home_screen_active = self.screen == Screen::Home;
 

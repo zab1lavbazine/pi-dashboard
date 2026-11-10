@@ -8,7 +8,7 @@ use crate::{
 
 pub fn show(app: &PiDashboardApp, ui: &mut egui::Ui) {
     egui::Frame::new()
-        .fill(egui::Color32::from_rgb(8, 12, 18))
+        .fill(crate::ui::theme::BACKGROUND)
         .inner_margin(32)
         .show(ui, |ui| {
             ui.set_min_size(ui.available_size());
@@ -51,8 +51,9 @@ pub fn show(app: &PiDashboardApp, ui: &mut egui::Ui) {
 
 fn show_metrics(snapshot: &SystemInfoSnapshot, ui: &mut egui::Ui) {
     egui::Frame::new()
-        .fill(egui::Color32::from_rgb(18, 25, 35))
-        .corner_radius(10.0)
+        .fill(crate::ui::theme::PANEL)
+        .corner_radius(0.0)
+        .stroke(egui::Stroke::new(1.0, crate::ui::theme::DIM))
         .inner_margin(20)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());

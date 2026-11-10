@@ -12,8 +12,10 @@ const NUMBER_OF_COLUMNS: usize = 3;
 pub fn show(app: &mut PiDashboardApp, ui: &mut egui::Ui) {
     app.clear_navigation_history();
     scrollable_screen_container(ui, |ui| {
-        heading(ui, "Pi Dashboard");
-        ui.add_space(16.0);
+        heading(ui, "Pi Dashboard / Control terminal");
+        ui.add_space(6.0);
+        ui.label(egui::RichText::new("SELECT SUBSYSTEM                              RPI // TOUCH INTERFACE").monospace().size(12.0).color(crate::ui::theme::DIM));
+        ui.add_space(12.0);
 
         card(ui, |ui| {
             let layout = calculate_layout(ui);

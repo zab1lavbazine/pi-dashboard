@@ -58,35 +58,8 @@ impl eframe::App for PiDashboardApp {
         if self.screen != Screen::MediaPlayer {
             crate::ui::theme::scanlines(ui);
         }
-        let user_activity = has_user_activity(ui);
-        let home_screen_active = self.screen == Screen::Home;
 
-        if !home_screen_active {
-            self.idle_overlay_visible = false;
-            self.last_user_activity = Instant::now();
-        }
-
-        if self.idle_overlay_visible {
-            if user_activity {
-                self.last_user_activity = Instant::now();
-                self.idle_overlay_visible = false;
-                ui.ctx().request_repaint();
-                return;
-            }
-
-            self.system_info.ensure_fresh();
-            system_info::show(self, ui);
-            return;
-        }
-
-        if home_screen_active && user_activity {
-            self.last_user_activity = Instant::now();
-        } else if home_screen_active && self.last_user_activity.elapsed() >= IDLE_OVERLAY_DELAY {
-            self.idle_overlay_visible = true;
-            self.system_info.ensure_fresh();
-            system_info::show(self, ui);
-            return;
-        }
+        self.check_and_set_idle_mode(ui);
 
         match self.screen {
             Screen::Home => home::show(self, ui),
@@ -190,6 +163,39 @@ impl PiDashboardApp {
 
     fn refresh_services(&mut self) {
         self.spotify.refresh();
+    }
+
+    fn check_and_set_idle_mode(&mut self, ui: &eframe::egui::Ui) {
+        let user_activity = has_user_activity(ui);
+        let home_screen_active = self.screen == Screen::Home;
+
+        if !home_screen_active {
+            self.idle_overlay_visible = false;
+            self.last_user_activity = Instant::now();
+        }
+
+        // setting up idle screen with info
+        if self.idle_overlay_visible {
+            if user_activity {
+                self.last_user_activity = Instant::now();
+                self.idle_overlay_visible = false;
+                ui.ctx().request_repaint();
+                return;
+            }
+
+            self.system_info.ensure_fresh();
+            system_info::show(self, ui);
+            return;
+        }
+
+        if home_screen_active && user_activity {
+            self.last_user_activity = Instant::now();
+        } else if home_screen_active && self.last_user_activity.elapsed() >= IDLE_OVERLAY_DELAY {
+            self.idle_overlay_visible = true;
+            self.system_info.ensure_fresh();
+            system_info::show(self, ui);
+            return;
+        }
     }
 }
 

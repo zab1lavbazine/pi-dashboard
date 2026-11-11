@@ -1,0 +1,43 @@
+:root { color-scheme: dark; font-family: "Cascadia Mono", "DejaVu Sans Mono", monospace; color: #9cf7ac; background: #06100b; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: radial-gradient(ellipse at top, #132d1d, #06100b 75%); }
+body::after { content: ""; position: fixed; inset: 0; pointer-events: none; background: repeating-linear-gradient(transparent 0 3px, #00000016 3px 4px); }
+main { max-width: 1120px; margin: auto; padding: 18px 22px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+h1 { font-size: 25px; letter-spacing: 2px; margin: 5px 0 0; text-shadow: 0 0 14px #6cff8050; }
+.eyebrow, footer, #connection { font-size: 10px; letter-spacing: 1px; color: #6eae80; }
+#connection { border: 1px solid #41674a; padding: 8px; white-space: nowrap; }
+.cursor { color: #dcffe0; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; }
+.panel { border: 1px solid #3d7950; background: #09180fe6; box-shadow: inset 0 0 25px #60ff8005; min-width: 0; }
+h2 { margin: 0; padding: 9px 12px; background: #9cf7ac; color: #0a2112; font-size: 12px; letter-spacing: 1px; }
+.identity { display: flex; justify-content: space-between; gap: 10px; padding: 13px 14px; font-size: 12px; overflow-wrap: anywhere; }
+.identity span { color: #6eae80; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px; }
+article { border: 1px solid #244b31; padding: 10px; min-width: 0; }
+h3 { margin: 0 0 8px; font-size: 10px; color: #6eae80; letter-spacing: 1px; }
+article strong { display: block; font-size: 19px; font-weight: normal; white-space: nowrap; }
+.caption { display: block; font-size: 9px; color: #6eae80; margin-top: 9px; }
+progress { appearance: none; width: 100%; height: 6px; border: 0; background: #1d3926; accent-color: #9cf7ac; margin-top: 12px; }
+progress::-webkit-progress-bar { background: #1d3926; }
+progress::-webkit-progress-value { background: #9cf7ac; }
+progress::-moz-progress-bar { background: #9cf7ac; }
+.details { display: flex; justify-content: space-between; gap: 10px; padding: 14px 14px 0; color: #6eae80; font-size: 10px; }
+.details b { color: #9cf7ac; font-weight: normal; }
+.notice { font-size: 10px; line-height: 1.5; color: #6eae80; margin: 10px 14px; overflow-wrap: anywhere; }
+.audio { padding-bottom: 4px; }
+.audio > .eyebrow { display: block; margin: 13px 14px 0; }
+.volume { font-size: 42px; text-align: center; margin-top: 8px; text-shadow: 0 0 16px #6cff8030; }
+.audio > progress { display: block; width: calc(100% - 28px); margin: 3px 14px 12px; }
+.audio > progress[hidden] { display: none; }
+button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid #66ac77; color: #b3ffc0; background: #102b1a; min-height: 42px; touch-action: manipulation; }
+button:hover:not(:disabled), button[aria-pressed="true"] { background: #9cf7ac; color: #092010; }
+button:focus-visible { outline: 2px solid #e0ffe6; outline-offset: 3px; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+.volume-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 14px 8px; }
+.volume-buttons button { font-size: 24px; }
+.audio > button { display: block; width: calc(100% - 28px); margin: 0 14px 8px; }
+button.secondary { border-color: #385e43; background: transparent; font-size: 10px; }
+footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 13px; font-size: 9px; }
+.error { color: #ffc58c; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 650px) { main { padding: 12px; } .layout { grid-template-columns: 1fr; } h1 { font-size: 20px; } .identity, .details { flex-wrap: wrap; } }

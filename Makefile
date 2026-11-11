@@ -11,13 +11,15 @@ PI_BINARY_ACTIVE := $(PI_DIR)/$(APP_NAME)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help run build check test clean build-pi build-pi-clean prepare-pi \
+.PHONY: help run run-egui run-tauri build check test clean build-pi build-pi-clean prepare-pi \
 	upload-pi upload-config upload-player-config upload-resources upload-all \
 	activate-pi deploy-pi
 
 help:
 	@echo "Local targets:"
-	@echo "  make run                 Run the dashboard locally"
+	@echo "  make run                 Run egui (default frontend)"
+	@echo "  make run-egui            Run the egui frontend"
+	@echo "  make run-tauri           Run Tauri dev (requires tauri-cli v2)"
 	@echo "  make build               Build a local release binary"
 	@echo "  make check               Format-check, compile, and test"
 	@echo "  make clean               Remove Cargo build output"
@@ -36,19 +38,24 @@ help:
 	@echo "Override deployment values when needed:"
 	@echo "  make deploy-pi PI_HOST=user@host PI_DIR=/opt/pi-dashboard"
 
-run:
-	cargo run
+run: run-egui
+
+run-egui:
+	cargo run -p pi-dashboard
+
+run-tauri:
+	cd apps/tauri && cargo tauri dev
 
 build:
 	cargo build --release
 
 check:
 	cargo fmt --all -- --check
-	cargo check
-	cargo test
+	cargo check --workspace
+	cargo test --workspace
 
 test:
-	cargo test
+	cargo test --workspace
 
 clean:
 	cargo clean

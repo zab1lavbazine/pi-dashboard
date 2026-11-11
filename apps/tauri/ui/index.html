@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pi Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><div><span class="eyebrow">LOCAL TELEMETRY / EXPERIMENTAL</span><h1>PI DASHBOARD<span class="cursor">_</span></h1></div><span id="connection" role="status">CONNECTING</span></header>
+    <div class="layout">
+      <section class="panel system" aria-labelledby="system-title">
+        <h2 id="system-title">01 / SYSTEM MONITOR</h2>
+        <div class="identity"><strong id="hostname">—</strong><span id="ip">—</span></div>
+        <div class="metrics">
+          <article><h3>CPU USAGE</h3><strong id="cpu">—</strong><progress id="cpu-bar" max="100" value="0" aria-label="CPU usage" hidden></progress></article>
+          <article><h3>THERMAL</h3><strong id="temperature">—</strong><span class="caption">SOC TEMPERATURE</span></article>
+          <article><h3>MEMORY</h3><strong id="memory">—</strong><progress id="memory-bar" max="100" value="0" aria-label="Memory usage" hidden></progress></article>
+          <article><h3>ROOT DISK</h3><strong id="disk">—</strong><progress id="disk-bar" max="100" value="0" aria-label="Root disk usage" hidden></progress></article>
+        </div>
+        <div class="details"><span>UPTIME <b id="uptime">—</b></span><span>LOAD / 1M <b id="load">—</b></span></div>
+        <p id="system-status" class="notice" role="status">Waiting for the first sample…</p>
+      </section>
+      <section class="panel audio" aria-labelledby="audio-title">
+        <h2 id="audio-title">02 / AUDIO OUTPUT</h2>
+        <span id="backend" class="eyebrow">BACKEND UNKNOWN</span>
+        <div id="volume" class="volume">—</div>
+        <progress id="volume-bar" max="100" value="0" aria-label="Output volume" hidden></progress>
+        <div class="volume-buttons"><button data-action="down" aria-label="Decrease volume" disabled>−</button><button data-action="up" aria-label="Increase volume" disabled>+</button></div>
+        <button id="mute" data-action="mute" aria-pressed="false" disabled>TOGGLE MUTE</button>
+        <button data-action="refresh" class="secondary" disabled>REFRESH OUTPUT</button>
+        <p id="volume-status" class="notice" role="status">Reading audio output…</p>
+      </section>
+    </div>
+    <footer><span>SYSTEM + AUDIO ONLY</span><span id="updated">NO SAMPLE RECEIVED</span></footer>
+    <p id="error" class="error" role="alert" hidden></p>
+  </main>
+</body>
+</html>

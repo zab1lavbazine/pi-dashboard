@@ -4,7 +4,7 @@ Pi Dashboard is a touchscreen-oriented Raspberry Pi application written in Rust 
 
 The default window is designed for an 800×480 display. Screens use large controls and scrollable cards so the main features can be operated without a keyboard.
 
-The interface uses a retro green-phosphor CRT theme: monospace text, inverted title bars, square outlined controls, and subtle static scanlines. Full-screen media playback is shown without scanlines. The shared palette and visual settings live in `src/ui/theme.rs`; warning and error colors remain distinct for readability.
+The interface uses a retro green-phosphor CRT theme: monospace text, inverted title bars, square outlined controls, and subtle static scanlines. Full-screen media playback is shown without scanlines. The shared palette and visual settings live in `crates/egui/src/ui/theme.rs`; warning and error colors remain distinct for readability.
 
 ## Features
 
@@ -31,19 +31,43 @@ pi-dashboard/
 │   ├── media/              # YAML-defined media buttons
 │   └── player.yaml         # Music folder and Bluetooth player settings
 ├── resources/              # GIF, audio, and other runtime assets
-├── src/
-│   ├── screens/            # egui rendering and screen interaction
-│   ├── services/           # Bluetooth, media, player, volume, etc.
-│   ├── ui/                 # Shared UI components
-│   ├── app.rs              # Application state and navigation
-│   ├── screen.rs           # Screen routes
-│   └── main.rs             # Native application entry point
+├── crates/
+│   ├── core/               # UI-independent Rust library and service tests
+│   │   └── src/            # Bluetooth, media, player, volume, etc.
+│   └── egui/               # Default native GUI (binary: pi-dashboard)
+│       └── src/            # Screens, theme, navigation, entry point
+├── apps/
+│   └── tauri/              # Experimental Tauri v2 GUI
+│       ├── src-tauri/      # Rust IPC adapter using the shared core
+│       └── ui/             # Local HTML/CSS/JS; no npm required
 ├── .cargo/config.toml      # AArch64 cross-linker configuration
 ├── Cargo.toml
 └── Makefile
 ```
 
-Screens contain presentation logic. System commands, filesystem access, configuration loading, playback, and background operations belong in services.
+Screens contain presentation logic. System commands, filesystem access, configuration loading, playback, and background operations belong in `pi-dashboard-core`. The core has no GUI dependencies. `pi-dashboard` depends on this library and owns the egui lifecycle and navigation.
+
+The root Cargo workspace contains two packages, `pi-dashboard-core` and `pi-dashboard`, with egui as the default member. Existing `cargo run` and deployment commands continue to use the egui application. Run commands from the repository root to preserve relative configuration/resource paths.
+
+```sh
+cargo run -p pi-dashboard
+cargo test -p pi-dashboard-core
+cargo check --workspace
+cargo test --workspace
+```
+
+### Try the Tauri frontend
+
+The optional Tauri v2 application uses the same core library through a small Rust IPC adapter. It currently implements **system metrics and volume controls**, not full feature parity with egui. It preserves the green CRT design and uses bundled local HTML/CSS/JS without Node or npm.
+
+Install the native prerequisites described in [`apps/tauri/README.md`](apps/tauri/README.md), then:
+
+```sh
+cargo install tauri-cli --version '^2' --locked
+make run-tauri
+```
+
+Tauri has an isolated Cargo workspace/lockfile so the default egui build does not require WebKitGTK or Tauri. On Windows, WebView2 and MSVC build tools are required; the existing Linux-oriented metrics/audio backends are not native Windows integrations. On Raspberry Pi, Tauri additionally requires GTK 3 and WebKitGTK 4.1; the existing egui cross-deployment workflow does not deploy Tauri.
 
 ## Requirements
 
@@ -72,9 +96,16 @@ Runtime functionality uses Linux commands supplied by these components:
 
 ## Run locally
 
+Run either frontend from the repository root:
+
 ```bash
-make run
+make run-egui    # Full-featured native egui application
+make run-tauri   # Experimental Tauri UI (requires tauri-cli v2 and native prerequisites)
+make run         # Alias for make run-egui
 ```
+
+Without Make, run `cargo run -p pi-dashboard` from the root for egui, or
+`cargo tauri dev` from `apps/tauri` for Tauri.
 
 Other local commands:
 
@@ -296,7 +327,7 @@ The system-information overlay appears only while Home has been idle for 10 seco
 
 ## Background tasks
 
-One-result system operations use `BackgroundTask<T>` from `src/services/task.rs`. It centralizes thread spawning, channel polling, busy-state protection, disconnected-worker detection, and receiver cancellation.
+One-result system operations use `BackgroundTask<T>` from `crates/core/src/task.rs`. It centralizes thread spawning, channel polling, busy-state protection, disconnected-worker detection, and receiver cancellation.
 
 Audio playback is managed separately because it is a long-running child process that must be stopped explicitly.
 

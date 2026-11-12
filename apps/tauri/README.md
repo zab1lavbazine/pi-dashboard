@@ -6,6 +6,41 @@ and shared core are unchanged. `src-tauri` has its own `[workspace]` and is alre
 excluded by the repository root workspace. Its core dependency is
 `../../../crates/core`, relative to `src-tauri`.
 
+## Code structure
+
+```text
+apps/tauri/
+├── src-tauri/src/
+│   ├── main.rs             # App bootstrap and IPC registration
+│   ├── state.rs            # Shared services, polling, status assembly
+│   ├── snapshots.rs        # Serializable IPC response types
+│   └── commands/
+│       ├── mod.rs          # Dashboard status command
+│       ├── volume.rs
+│       ├── bluetooth.rs
+│       └── spotify.rs
+├── ui/
+│   ├── app.js              # Frontend bootstrap and coordination
+│   ├── ipc.js              # Serialized requests, polling, connection state
+│   ├── navigation.js
+│   ├── dom.js              # Shared DOM helpers
+│   ├── format.js           # Display formatting
+│   ├── screens/            # system, volume, computer, spotify, bluetooth
+│   ├── index.html
+│   └── style.css
+└── tests/frontend.test.mjs # Dependency-free frontend regression tests
+```
+
+System integration remains in `crates/core`; Rust commands validate and dispatch
+IPC actions, while screen modules own rendering and control bindings. The
+frontend uses native ES modules without a bundler or npm dependencies.
+
+Run frontend tests from the repository root (Node.js is needed only for tests):
+
+```sh
+node --experimental-vm-modules --test apps/tauri/tests/frontend.test.mjs
+```
+
 ## Prerequisites and running
 
 Use a current stable Rust toolchain supporting edition 2024 and the dependencies'
@@ -49,13 +84,24 @@ package resolves its own `Cargo.lock`; it does not use the root workspace lock.
 
 ## Limited scope and behavior
 
-Only system metrics and default-output volume are implemented. There are **no**
-media, Bluetooth, Spotify, terminal, shell, power, shutdown, or reboot controls.
-No placeholder feature buttons or Tauri plugins are installed. Only the two
-application commands `dashboard_status` and `volume_action` are registered;
-volume actions accept exactly `up`, `down`, `mute`, and `refresh`. No arbitrary
-program names or arguments cross IPC. The core volume service itself invokes
-fixed audio-tool commands asynchronously.
+The Overview screen provides system metrics and default-output volume. Additional
+screens expose the shared core services:
+
+- **Computer:** automatic WebSocket connection/reconnection, connection errors,
+  and remote telemetry fields. Uses the existing Tailscale discovery and
+  `config/computer.yaml` configuration, or `PI_DASHBOARD_COMPUTER_WS_URL`.
+- **Spotify:** Spotify Connect systemd-service status, refreshed automatically
+  every five seconds and on demand. This is not a Spotify playback controller.
+  The core reports stopped, failed checks, and not-yet-checked as not running.
+- **Bluetooth:** refresh, scan, device selection, pair, trust, connect,
+  disconnect, and confirmed removal. Requires BlueZ (`bluetoothctl`) and the
+  appropriate system permissions. Scanning can take several seconds.
+
+Media, terminal, shell, power, shutdown, and reboot controls are not implemented.
+IPC commands are `dashboard_status`, `volume_action`, `bluetooth_action`, and
+`spotify_action`. Actions use exact allowlists; Bluetooth device addresses are
+validated and must identify a known device. No arbitrary program names or shell
+commands cross IPC. No Tauri plugins are installed.
 
 Services live behind a Rust mutex. Status requests poll completed core tasks,
 request freshness (core system interval: two seconds), and initialize volume.
@@ -63,6 +109,9 @@ The browser serializes all IPC, waits for completion before scheduling another
 poll, disables controls during IPC/audio work, and catches failures. Actions
 return the current state immediately; subsequent polls collect their result.
 Volume refresh is explicit after initialization or external audio changes.
+Pending volume operations are polled every 50 ms, Bluetooth operations every
+250 ms, and idle status every 750 ms. Device rows are preserved across polls so
+keyboard focus is not lost. Remote telemetry and device names render as text.
 Unavailable readings are `null`/`—`, not fabricated zeros. The first CPU reading
 needs two core samples. Existing readings may remain visible after failures;
 error messages identify them as potentially stale. System loading means no
@@ -77,7 +126,10 @@ experimental local UI, not a hardened kiosk or replacement for the main app.
 
 ## Working directory and resources
 
-This limited UI does not load media/player resources. The shared core's other
+This UI does not load media/player resources. Computer configuration is loaded
+by the shared core: when launching with `make run-tauri`, set an absolute
+`PI_DASHBOARD_COMPUTER_CONFIG` path if the default relative path is not found,
+or set `PI_DASHBOARD_COMPUTER_WS_URL` to bypass discovery. The shared core's other
 features use repository-root-relative `config/` and `resources/` paths; assets
 are **not** automatically bundled by this experiment. For future integrations,
 launch the built executable with the repository root as the working directory,

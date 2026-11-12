@@ -58,7 +58,7 @@ cargo test --workspace
 
 ### Try the Tauri frontend
 
-The optional Tauri v2 application uses the same core library through a small Rust IPC adapter. It currently implements **system metrics and volume controls**, not full feature parity with egui. It preserves the green CRT design and uses bundled local HTML/CSS/JS without Node or npm.
+The optional Tauri v2 application uses the same core library through a small Rust IPC adapter. It currently implements **system metrics, volume, Computer telemetry, Spotify service status, and Bluetooth management**, not full feature parity with egui. It preserves the green CRT design and uses bundled local HTML/CSS/JS without Node or npm.
 
 Install the native prerequisites described in [`apps/tauri/README.md`](apps/tauri/README.md), then:
 

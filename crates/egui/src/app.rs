@@ -60,6 +60,9 @@ impl eframe::App for PiDashboardApp {
         }
 
         self.check_and_set_idle_mode(ui);
+        if self.idle_overlay_visible {
+            return;
+        }
 
         match self.screen {
             Screen::Home => home::show(self, ui),
@@ -165,7 +168,7 @@ impl PiDashboardApp {
         self.spotify.refresh();
     }
 
-    fn check_and_set_idle_mode(&mut self, ui: &eframe::egui::Ui) {
+    fn check_and_set_idle_mode(&mut self, ui: &mut eframe::egui::Ui) {
         let user_activity = has_user_activity(ui);
         let home_screen_active = self.screen == Screen::Home;
 
@@ -194,7 +197,6 @@ impl PiDashboardApp {
             self.idle_overlay_visible = true;
             self.system_info.ensure_fresh();
             system_info::show(self, ui);
-            return;
         }
     }
 }

@@ -4,6 +4,7 @@ APP_NAME ?= pi-dashboard
 PI_TARGET ?= aarch64-unknown-linux-gnu
 PI_HOST ?= bareldan@debil4ik
 PI_DIR ?= /home/bareldan/pi-dashboard
+PI_DASHBOARD_COMPUTER_CONFIG ?= $(abspath config/computer.yaml)
 
 PI_BINARY := target/$(PI_TARGET)/release/$(APP_NAME)
 PI_BINARY_NEW := $(PI_DIR)/$(APP_NAME).new
@@ -44,7 +45,7 @@ run-egui:
 	cargo run -p pi-dashboard
 
 run-tauri:
-	cd apps/tauri && cargo tauri dev
+	cd apps/tauri && PI_DASHBOARD_COMPUTER_CONFIG="$(PI_DASHBOARD_COMPUTER_CONFIG)" cargo tauri dev
 
 build:
 	cargo build --release

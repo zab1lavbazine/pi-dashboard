@@ -30,7 +30,7 @@ progress::-moz-progress-bar { background: #9cf7ac; }
 .volume { font-size: 42px; text-align: center; margin-top: 8px; text-shadow: 0 0 16px #6cff8030; }
 .audio > progress { display: block; width: calc(100% - 28px); margin: 3px 14px 12px; }
 .audio > progress[hidden] { display: none; }
-button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid #66ac77; color: #b3ffc0; background: #102b1a; min-height: 42px; touch-action: manipulation; }
+button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid #66ac77; color: #b3ffc0; background: #102b1a; min-height: 48px; touch-action: manipulation; }
 button:hover:not(:disabled), button[aria-pressed="true"] { background: #9cf7ac; color: #092010; }
 button:focus-visible { outline: 2px solid #e0ffe6; outline-offset: 3px; }
 button:disabled { opacity: .4; cursor: not-allowed; }
@@ -40,4 +40,24 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 button.secondary { border-color: #385e43; background: transparent; font-size: 10px; }
 footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 13px; font-size: 9px; }
 .error { color: #ffc58c; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+nav button { padding: 8px; }
+nav button[aria-current="page"] { background: #9cf7ac; color: #092010; border-color: #dcffe0; }
+.screen { min-height: 280px; }
+.state { margin: 20px 14px; font-size: 18px; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; }
+.actions button { padding: 10px 16px; }
+.fields { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr); margin: 14px; font-size: 13px; }
+.fields dt, .fields dd { margin: 0; padding: 12px; border-bottom: 1px solid #244b31; overflow-wrap: anywhere; white-space: pre-wrap; }
+.fields dt { color: #82c893; }
+.devices { list-style: none; padding: 0 14px 14px; margin: 0; }
+.devices li { border: 1px solid #385e43; padding: 14px; margin-top: 12px; overflow-wrap: anywhere; }
+.devices li.selected { border-color: #b3ffc0; box-shadow: inset 4px 0 #9cf7ac; }
+.devices strong { font-size: 16px; }
+.devices p { font-size: 12px; color: #82c893; line-height: 1.6; }
+.devices .actions { padding: 0; }
+button[data-bluetooth="remove"] { color: #ffc58c; border-color: #b58a62; }
+.notice { font-size: 12px; }
+@media (max-width: 480px) { nav { grid-template-columns: 1fr 1fr; } .actions button { flex: 1 1 110px; } .fields { grid-template-columns: 1fr; } .fields dt { border-bottom: 0; padding-bottom: 0; } }
 @media (max-width: 650px) { main { padding: 12px; } .layout { grid-template-columns: 1fr; } h1 { font-size: 20px; } .identity, .details { flex-wrap: wrap; } }
